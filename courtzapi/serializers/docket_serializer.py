@@ -24,20 +24,20 @@ class DocketFilerSerializer(serializers.ModelSerializer):
 
 class DocketFilingSerializer(serializers.ModelSerializer):
     filing_type = FilingTypeSerializer()
-    filer = DocketFilerSerializer()
+    # filer = DocketFilerSerializer()
     class Meta:
         model = Filing
-        fields = ('id', 'filer', 'title', 'docket_index', 'filed_on',
-                  'filing_type', 'file_url')
-        depth = 2
+        fields = ('id', 'docket_party', 'title', 'docket_index', 'filed_on',
+                  'filing_type', 'file_pdf')
+        depth = 5
 
 class DocketSerializer(serializers.ModelSerializer):
     status = CaseStatusSerializer()
-    # managers = FilerSerializer(many=True)
+    managers = FilerSerializer(many=True)
     filings = DocketFilingSerializer(many=True)
     # parties = DocketFilerSerializer(many=True)
     class Meta:
         model = Docket
         fields = ("id", "case_num", 'case_name', "status",
-                  "created_on", "closed_on", "parties", "filings")
-        depth = 3
+                  "created_on", "closed_on", 'managers', "docket_parties", "filings")
+        depth = 4

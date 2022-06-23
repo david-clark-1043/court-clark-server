@@ -1,7 +1,7 @@
 from django.db import models
 
 class Filing(models.Model):
-    filer = models.ForeignKey("Filer", on_delete=models.CASCADE)
+    docket_party = models.ForeignKey("DocketParty", on_delete=models.CASCADE)
     docket = models.ForeignKey("Docket", on_delete=models.CASCADE, related_name="filings")
     title = models.CharField(max_length=300, default="tbd")
     docket_index = models.IntegerField()

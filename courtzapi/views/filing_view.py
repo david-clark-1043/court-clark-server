@@ -5,11 +5,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.files.base import ContentFile
 
-from courtzapi.models import Filing
+from courtzapi.models import Filing, FilerType, RepFirm, PartyType
 from courtzapi.models.case_status import CaseStatus
+from courtzapi.models.docket_parties import DocketParty
 from courtzapi.models.dockets import Docket
 from courtzapi.models.filers import Filer
 from courtzapi.models.filing_type import FilingType
+from courtzapi.models.firms import Firm
+from courtzapi.models.rep__firm_parties import RepFirmParty
 from courtzapi.serializers import FilingSerializer
 
 class FilingView(ViewSet):
@@ -25,63 +28,108 @@ class FilingView(ViewSet):
     
     def create(self, request):
         """ POST single filing """
-        # data needed in request
+        """ data needed in request
         # filer comes from the request token
         # docket_index generated from length of docket
         # in body of request
             # docket_id - if blank, make new docket
             # filing_type_id
             # file_url
-        
-        new_docket = not request.data["docket_id"]
+        """
         
         # needs to check if the filing is a new docket
-        if new_docket:
-            # get case_num of last docket
-            # status = open (1)
-            # last_docket_case_num = Docket.objects.last().case_num
-            new_status = CaseStatus.objects.get(pk=1)
-            created_docket = Docket.objects.create(
-                case_num = "testString",
-                status=new_status,
-            )
-            docket = Docket.objects.last()
+        new_docket = not request.data["docket_id"]
         
-        # or if the filing should create a docket as well
-        else:
+        if new_docket:
+            count_as_string = f"{len(Docket.objects.all() + 1)}" # get num of dockets
+            padding_needed = (8 - len(count_as_string)) * "0"
+            case_num_padded = f"A-{padding_needed}{count_as_string}" # add padding up to 8 digits
+            new_status = CaseStatus.objects.get(pk=1) # status = open (1)
+            created_docket = Docket.objects.create( case_num = case_num_padded,
+                                                    status = new_status)
+            docket = Docket.objects.last()
+        else: # or if the filing should use existing docket
             docket = Docket.objects.get(pk=request.data["docket_id"])
         
+        # get filer object of the person submitting the filing
         filer = Filer.objects.get(pk=request.auth.user.id)
+
+        # check if the filer is a judge, clerk, attorney, or party
+        # this is for adding the correct RepFirmParty relationship
+        filer_type = FilerType.objects.get(pk=filer.filer_type_id)
+        filer_type = filer_type.filer_type
+        filing_status = request.data["pro_se_status"]
+        if filer_type == "judge":
+            # add generic judge relation
+            # check if filer-judge rep_firm exists
+            
+            # if rep_firm exists, use
+            # if rep_firm not exists, create
+            pass
+        elif filer_type == "clerk":
+            # add generic clerk relation
+            # check if filer-clerk rep_firm exists
+            
+            # if rep_firm exists, use
+            # if rep_firm not exists, create
+            pass
+        elif filer_type == "party" or filing_status:
+            # add generic pro se relation
+            # get pro se firm object id is 3
+            pro_se_firm = Firm.objects.get(pk=3)
+            # check if filer-pro se rep_firm exists
+            rep_firm_exists = pro_se_firm in filer.firms.all()
+            if not rep_firm_exists:
+                filer.firms.add(pro_se_firm)
+            
+            # get rep_firm for rep_firm_party checks
+            rep_firm = RepFirm.objects.get(representative=filer, firm=pro_se_firm)
+            # check if rep_firm_party exists
+            rep_firm_party_exists = rep_firm in filer.representation.all()
+            if not rep_firm_party_exists:
+                filer.representation.add(rep_firm)
+            
+            rep_firm_party = RepFirmParty.objects.get(rep_firm=rep_firm, party=filer)
+        elif filer_type == "attorney":
+            # add computed RepFirmParty
+            # needs the party info, attorney info, and firm info?
+            pass
+        else:
+            return Response({"message": "filer type error"})
         
-        # parties = [docket_party.rep_party for docket_party in docket.parties]
-        
-        # if filer not in docket.parties
+        # get party type from request
+        party_type = PartyType.objects.get(pk=request.data["party_type_id"])
+        # check if RepFirmParty is associated with this docket
+        try:
+            docket_party = DocketParty.objects.get(
+                rep_firm_party=rep_firm_party, 
+                docket=docket, 
+                party_type=party_type
+            )
+        except:
+        # if it is not
+            # create new DocketParty linking docket to the RepFirmParty
+            docket_party = DocketParty.objects.create(
+                rep_firm_party=rep_firm_party,
+                docket=docket,
+                party_type=party_type
+            )
+        # if it is, use existing DocketParty for the filing
         
         filing_type= FilingType.objects.get(pk=request.data['filing_type_id'])
         docket_index = len(docket.filings.all()) + 1
 
-        # Create a new instance of the game picture model you defined
-        # Example: game_picture = GamePicture()
-
+        # handle filing's file data
         filer_format, pdfstr = request.data["file_pdf"].split(';base64,')
         ext = filer_format.split('/')[-1]
         data = ContentFile(base64.b64decode(pdfstr), name=f'{request.data["title"]}.{ext}')
 
-        # Give the image property of your game picture instance a value
-        # For example, if you named your property `action_pic`, then
-        # you would specify the following code:
-        #
-        #       game_picture.action_pic = data
-
-        # Save the data to the database with the save() method
-
         new_filing = Filing.objects.create(
-            filer=filer,
+            docket_party=docket_party,
             docket=docket,
             docket_index=docket_index,
             filing_type=filing_type,
             title=request.data['title'],
-            file_url = request.data['file_url'],
             file_pdf = data
         )
         serializer = FilingSerializer(new_filing)

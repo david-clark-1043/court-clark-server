@@ -29,6 +29,8 @@ router.register(r'filings', views.FilingView, 'filing')
 router.register(r'filingTypes', views.FilingTypeView, 'filing_type')
 router.register(r'partyTypes', views.PartyTypeView, 'party_type')
 router.register(r'dockets', views.DocketView, 'docket')
+router.register(r'firms', views.FirmView, 'firm')
+router.register(r'repFirms', views.RepFirmView, 'rep_firm')
 # router.register(r'f', views.FilingView, 'filing')
 
 urlpatterns = [

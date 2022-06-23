@@ -20,7 +20,7 @@ class FilerSerializer(serializers.ModelSerializer):
         model = Filer
         fields = ('id', 'user', 'address_line1', 'address_line2',
                   'address_city', 'state_code', 'zip_code',
-                  'phone_num', 'filer_type')
+                  'phone_num', 'firms', 'filer_type')
         # not including 'managing_dockets'
         depth = 2
 

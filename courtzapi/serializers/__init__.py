@@ -5,4 +5,6 @@ from .party_type_serializer import PartyTypeSerializer
 from .docket_serializer import DocketSerializer
 from .filer_serializer import FilerSerializer, UpdateFilerSerializer, UserSerializer
 from .filing_serializer import FilingSerializer
+from .firm_serializer import FirmSerializer
+from .rep_firm_serializer import RepFirmSerializer
 # from .docket_party_serializer import DocketPartySerializer
